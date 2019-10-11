@@ -1,2 +1,0 @@
-# BJTU_NLP
-Repo NLP
