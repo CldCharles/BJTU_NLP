@@ -4,17 +4,59 @@ import random
 import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import urllib3
+import urllib.request
+import re
+from bs4 import BeautifulSoup
+import pickle
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+
+
+REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
+BAD_SYMBOLS_RE = re.compile('[^a-z #+_]')
+STOPWORDS = set(stopwords.words('english'))
 
 def dl_text():
     f = open ('Url.txt', 'r')
     ListUrl = f.read()
     f.close()
     ListUrl = ListUrl.split("\n")
-    print (ListUrl)
+    ListText = []
+    for items in ListUrl:
+        ListText.append(pre_process(items))
+    Text = ' '.join(ListText)
+    with open ('DataSave', 'wb') as out_file:
+        pickle.dump(Text, out_file)
+    out_file.close()
 
+
+def pre_process(url):
+    http = urllib3.PoolManager()
+    r = http.request('GET', url)
+    raw_html = r.data
+    soup = BeautifulSoup(raw_html, 'html.parser')
+    raw_content = soup.find('div', attrs={'class':'post-content'}).find_all('p')
+    for idx , elem in enumerate(raw_content):
+        raw_content[idx] = elem.text.strip()
+    text  = ' '.join(raw_content)
+    text = textcleaner(text)
+    return (text)
+
+def textcleaner(text):
+    text = text.lower()
+    text = re.sub(REPLACE_BY_SPACE_RE, " ", text)
+    re.sub(BAD_SYMBOLS_RE, "", text)
+    tmp = text.split()
+    fileredText = []
+    for w in tmp:
+        if w not in STOPWORDS:
+            fileredText.append(w)
+    text = ' '.join(fileredText)
+    return (text)
 
 f=open('chatbot.txt','r',errors = 'ignore')
-raw=f.read()
+raw= f.read()
 raw=raw.lower()# converts to lowercase
 nltk.download('punkt') # first-time use only
 nltk.download('wordnet') # first-time use only
