@@ -5,6 +5,14 @@ import string
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+def dl_text():
+    f = open ('Url.txt', 'r')
+    ListUrl = f.read()
+    f.close()
+    ListUrl = ListUrl.split("\n")
+    print (ListUrl)
+
+
 f=open('chatbot.txt','r',errors = 'ignore')
 raw=f.read()
 raw=raw.lower()# converts to lowercase
@@ -46,7 +54,8 @@ def response(user_response):
         robo_response = robo_response+sent_tokens[idx]
         return robo_response
 
-flag=True
+flag=False
+dl_text()
 print("ROBO: My name is Robo. I will answer your queries about Chatbots. If you want to exit, type Bye!")
 while(flag==True):
     user_response = input()
