@@ -15,14 +15,11 @@ import binascii
 from nltk.corpus import webtext
 from nltk.corpus import nps_chat
 
-print("couilles molles")
-
 REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
 BAD_SYMBOLS_RE = re.compile('[^a-z #+_]')
 STOPWORDS = set(stopwords.words('english'))
 nltk.download('punkt') # first-time use only
 nltk.download('wordnet') # first-time use only
-
 
 def pre_process(url):
     http = urllib3.PoolManager(retries=False)
@@ -112,15 +109,15 @@ def response(user_response):
 def run(user_response):
     if(user_response!='bye'):
         if(user_response=='thanks' or user_response=='thank you' ):
-            return("Louifion: You are welcome..")
+            return("You are welcome..")
         else:
             if(greeting(user_response)!=None):
-                return("Louifion: "+greeting(user_response))
+                return(greeting(user_response))
             else:
                 bite = response(user_response)
                 sent_tokens.remove(user_response)
                 return(bite)
     else:
-        return("Louifion: Bye! take care..")
+        return("Bye! take care..")
 
 #print("Louifion: My name is Louifion. I will answer your queries. If you want to exit, type Bye!")
