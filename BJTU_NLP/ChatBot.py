@@ -12,31 +12,21 @@ import pickle
 nltk.download('stopwords')
 from nltk.corpus import stopwords
 import binascii
+from nltk.corpus import webtext
+from nltk.corpus import nps_chat
 
+print("couilles molles")
 
 REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
 BAD_SYMBOLS_RE = re.compile('[^a-z #+_]')
 STOPWORDS = set(stopwords.words('english'))
-
-def dl_text():
-    f = open ('Url.txt', 'r')
-    ListUrl = f.read()
-    f.close()
-    ListUrl = ListUrl.split("\n")
-    ListText = []
-    i = 0
-    for items in ListUrl[:1]:
-        ListText.append(pre_process(items))
-        i += 1
-        print(i)
-    Text = ' '.join(ListText)
-    with open ('DataSave', 'wb') as out_file:
-      pickle.dump(Text, out_file)
-    out_file.close()
+nltk.download('punkt') # first-time use only
+nltk.download('wordnet') # first-time use only
 
 
 def pre_process(url):
-    http = urllib3.PoolManager()
+    http = urllib3.PoolManager(retries=False)
+    print(url)
     r = http.request('GET', url)
     raw_html = r.data
     soup = BeautifulSoup(raw_html, 'html.parser')
@@ -57,22 +47,35 @@ def textcleaner(text):
         if w not in STOPWORDS:
             fileredText.append(w)
     text = ' '.join(fileredText)
-    return (text)
+    return (text) 
+
+def dl_text():
+    f = open ('Url.txt', 'r')
+    ListUrl = f.read()
+    f.close()
+    ListUrl = ListUrl.split("\n")
+    ListText = []
+    i = 0
+    for items in ListUrl:
+        ListText.append(pre_process(items))
+        i += 1
+        print(i)
+    Text = ' '.join(ListText)
+    with open ('DataSave', 'wb') as out_file:
+      pickle.dump(Text, out_file)
+    out_file.close()
 
 try:
-    with (open("DataSave", "rb")) as openfile:
-        raw = pickle.load(openfile)
+        with (open("DataSave", "rb")) as openfile:
+            raw = pickle.load(openfile)
 except:
-    dl_text()
-    with (open("DataSave", "rb")) as openfile:
-        raw = pickle.load(openfile)
-      
-nltk.download('punkt') # first-time use only
-nltk.download('wordnet') # first-time use only
+        dl_text()
+        with (open("DataSave", "rb")) as openfile:
+            raw = pickle.load(openfile)
 sent_tokens = nltk.sent_tokenize(raw)# converts to list of sentences 
 word_tokens = nltk.word_tokenize(raw)
-
 lemmer = nltk.stem.WordNetLemmatizer()
+   
 #WordNet is a semantically-oriented dictionary of English included in NLTK.
 def LemTokens(tokens):
     return [lemmer.lemmatize(token) for token in tokens]
@@ -82,8 +85,8 @@ def LemNormalize(text):
 
 GREETING_INPUTS = ("hello", "hi", "greetings", "sup", "what's up","hey",)
 GREETING_RESPONSES = ["hi", "hey", "hi there", "hello", "I am glad! You are talking to me"]
+
 def greeting(sentence):
- 
     for word in sentence.split():
         if word.lower() in GREETING_INPUTS:
             return random.choice(GREETING_RESPONSES)
@@ -105,22 +108,19 @@ def response(user_response):
         robo_response = robo_response+sent_tokens[idx]
         return robo_response
 
-flag=True
-print("ROBO: My name is Robo. I will answer your queries about Chatbots. If you want to exit, type Bye!")
-while(flag==True):
-    user_response = input()
-    user_response=user_response.lower()
+
+def run(user_response):
     if(user_response!='bye'):
         if(user_response=='thanks' or user_response=='thank you' ):
-            flag=False
-            print("ROBO: You are welcome..")
+            return("Louifion: You are welcome..")
         else:
             if(greeting(user_response)!=None):
-                print("ROBO: "+greeting(user_response))
+                return("Louifion: "+greeting(user_response))
             else:
-                print("ROBO: ",end="")
-                print(response(user_response))
+                bite = response(user_response)
                 sent_tokens.remove(user_response)
+                return(bite)
     else:
-        flag=False
-        print("ROBO: Bye! take care..")
+        return("Louifion: Bye! take care..")
+
+#print("Louifion: My name is Louifion. I will answer your queries. If you want to exit, type Bye!")
