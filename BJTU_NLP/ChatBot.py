@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import pickle
 nltk.download('stopwords')
 from nltk.corpus import stopwords
+import binascii
 
 
 REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
@@ -23,11 +24,14 @@ def dl_text():
     f.close()
     ListUrl = ListUrl.split("\n")
     ListText = []
-    for items in ListUrl:
+    i = 0
+    for items in ListUrl[:1]:
         ListText.append(pre_process(items))
+        i += 1
+        print(i)
     Text = ' '.join(ListText)
     with open ('DataSave', 'wb') as out_file:
-        pickle.dump(Text, out_file)
+      pickle.dump(Text, out_file)
     out_file.close()
 
 
@@ -55,9 +59,14 @@ def textcleaner(text):
     text = ' '.join(fileredText)
     return (text)
 
-f=open('chatbot.txt','r',errors = 'ignore')
-raw= f.read()
-raw=raw.lower()# converts to lowercase
+try:
+    with (open("DataSave", "rb")) as openfile:
+        raw = pickle.load(openfile)
+except:
+    dl_text()
+    with (open("DataSave", "rb")) as openfile:
+        raw = pickle.load(openfile)
+      
 nltk.download('punkt') # first-time use only
 nltk.download('wordnet') # first-time use only
 sent_tokens = nltk.sent_tokenize(raw)# converts to list of sentences 
@@ -72,7 +81,7 @@ def LemNormalize(text):
     return LemTokens(nltk.word_tokenize(text.lower().translate(remove_punct_dict)))
 
 GREETING_INPUTS = ("hello", "hi", "greetings", "sup", "what's up","hey",)
-GREETING_RESPONSES = ["hi", "hey", "*nods*", "hi there", "hello", "I am glad! You are talking to me"]
+GREETING_RESPONSES = ["hi", "hey", "hi there", "hello", "I am glad! You are talking to me"]
 def greeting(sentence):
  
     for word in sentence.split():
@@ -82,7 +91,7 @@ def greeting(sentence):
 def response(user_response):
     robo_response=''
     sent_tokens.append(user_response)
-    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize, stop_words='english')
+    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize)
     tfidf = TfidfVec.fit_transform(sent_tokens)
     vals = cosine_similarity(tfidf[-1], tfidf)
     idx=vals.argsort()[0][-2]
@@ -96,8 +105,7 @@ def response(user_response):
         robo_response = robo_response+sent_tokens[idx]
         return robo_response
 
-flag=False
-dl_text()
+flag=True
 print("ROBO: My name is Robo. I will answer your queries about Chatbots. If you want to exit, type Bye!")
 while(flag==True):
     user_response = input()
