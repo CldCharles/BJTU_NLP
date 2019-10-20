@@ -1,118 +1,109 @@
 import nltk
-import numpy as np
+from nltk.stem.lancaster import LancasterStemmer
+
+stemmer = LancasterStemmer()
+
+import numpy
+import tflearn
+import tensorflow
 import random
-import string
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import urllib3
-import urllib.request
-import re
-from bs4 import BeautifulSoup
-import pickle
-nltk.download('stopwords')
-from nltk.corpus import stopwords
 
+import json
 
-REPLACE_BY_SPACE_RE = re.compile('[/(){}\[\]\|@,;]')
-BAD_SYMBOLS_RE = re.compile('[^a-z #+_]')
-STOPWORDS = set(stopwords.words('english'))
+with open('intents.json') as file:
+    data = json.load(file)
 
-def dl_text():
-    f = open ('Url.txt', 'r')
-    ListUrl = f.read()
-    f.close()
-    ListUrl = ListUrl.split("\n")
-    ListText = []
-    for items in ListUrl:
-        ListText.append(pre_process(items))
-    Text = ' '.join(ListText)
-    with open ('DataSave', 'wb') as out_file:
-        pickle.dump(Text, out_file)
-    out_file.close()
+words = []
+labels = []
+docs_x = []
+docs_y = []
 
+for intent in data['intents']:
+    for pattern in intent['patterns']:
+        wrds = nltk.word_tokenize(pattern)
+        words.extend(wrds)
+        docs_x.append(wrds)
+        docs_y.append(intent["tag"])
 
-def pre_process(url):
-    http = urllib3.PoolManager()
-    r = http.request('GET', url)
-    raw_html = r.data
-    soup = BeautifulSoup(raw_html, 'html.parser')
-    raw_content = soup.find('div', attrs={'class':'post-content'}).find_all('p')
-    for idx , elem in enumerate(raw_content):
-        raw_content[idx] = elem.text.strip()
-    text  = ' '.join(raw_content)
-    text = textcleaner(text)
-    return (text)
+    if intent['tag'] not in labels:
+        labels.append(intent['tag'])
 
-def textcleaner(text):
-    text = text.lower()
-    text = re.sub(REPLACE_BY_SPACE_RE, " ", text)
-    re.sub(BAD_SYMBOLS_RE, "", text)
-    tmp = text.split()
-    fileredText = []
-    for w in tmp:
-        if w not in STOPWORDS:
-            fileredText.append(w)
-    text = ' '.join(fileredText)
-    return (text)
+words = [stemmer.stem(w.lower()) for w in words if w != "?"]
+words = sorted(list(set(words)))
 
-f=open('chatbot.txt','r',errors = 'ignore')
-raw= f.read()
-raw=raw.lower()# converts to lowercase
-nltk.download('punkt') # first-time use only
-nltk.download('wordnet') # first-time use only
-sent_tokens = nltk.sent_tokenize(raw)# converts to list of sentences 
-word_tokens = nltk.word_tokenize(raw)
+labels = sorted(labels)
 
-lemmer = nltk.stem.WordNetLemmatizer()
-#WordNet is a semantically-oriented dictionary of English included in NLTK.
-def LemTokens(tokens):
-    return [lemmer.lemmatize(token) for token in tokens]
-remove_punct_dict = dict((ord(punct), None) for punct in string.punctuation)
-def LemNormalize(text):
-    return LemTokens(nltk.word_tokenize(text.lower().translate(remove_punct_dict)))
+training = []
+output = []
 
-GREETING_INPUTS = ("hello", "hi", "greetings", "sup", "what's up","hey",)
-GREETING_RESPONSES = ["hi", "hey", "*nods*", "hi there", "hello", "I am glad! You are talking to me"]
-def greeting(sentence):
- 
-    for word in sentence.split():
-        if word.lower() in GREETING_INPUTS:
-            return random.choice(GREETING_RESPONSES)
+out_empty = [0 for _ in range(len(labels))]
 
-def response(user_response):
-    robo_response=''
-    sent_tokens.append(user_response)
-    TfidfVec = TfidfVectorizer(tokenizer=LemNormalize, stop_words='english')
-    tfidf = TfidfVec.fit_transform(sent_tokens)
-    vals = cosine_similarity(tfidf[-1], tfidf)
-    idx=vals.argsort()[0][-2]
-    flat = vals.flatten()
-    flat.sort()
-    req_tfidf = flat[-2]
-    if(req_tfidf==0):
-        robo_response=robo_response+"I am sorry! I don't understand you"
-        return robo_response
-    else:
-        robo_response = robo_response+sent_tokens[idx]
-        return robo_response
+for x, doc in enumerate(docs_x):
+    bag = []
 
-flag=False
-dl_text()
-print("ROBO: My name is Robo. I will answer your queries about Chatbots. If you want to exit, type Bye!")
-while(flag==True):
-    user_response = input()
-    user_response=user_response.lower()
-    if(user_response!='bye'):
-        if(user_response=='thanks' or user_response=='thank you' ):
-            flag=False
-            print("ROBO: You are welcome..")
+    wrds = [stemmer.stem(w.lower()) for w in doc]
+
+    for w in words:
+        if w in wrds:
+            bag.append(1)
         else:
-            if(greeting(user_response)!=None):
-                print("ROBO: "+greeting(user_response))
-            else:
-                print("ROBO: ",end="")
-                print(response(user_response))
-                sent_tokens.remove(user_response)
-    else:
-        flag=False
-        print("ROBO: Bye! take care..")
+            bag.append(0)
+
+    output_row = out_empty[:]
+    output_row[labels.index(docs_y[x])] = 1
+
+    training.append(bag)
+    output.append(output_row)
+
+training = numpy.array(training)
+output = numpy.array(output)
+
+tensorflow.reset_default_graph()
+
+net = tflearn.input_data(shape=[None, len(training[0])])
+net = tflearn.fully_connected(net, 8)
+net = tflearn.fully_connected(net, 8)
+net = tflearn.fully_connected(net, len(output[0]), activation="softmax")
+net = tflearn.regression(net)
+
+model = tflearn.DNN(net)
+try:
+    model.load("model.tflearn")
+except:
+    model = tflearn.DNN(net)
+    model.fit(training, output, n_epoch=1000, batch_size=8, show_metric=True)
+    model.save("model.tflearn")
+
+
+def bag_of_words(s, words):
+    bag = [0 for _ in range(len(words))]
+
+    s_words = nltk.word_tokenize(s)
+    s_words = [stemmer.stem(word.lower()) for word in s_words]
+
+    for se in s_words:
+        for i, w in enumerate(words):
+            if w == se:
+                bag[i] = 1
+
+    return numpy.array(bag)
+
+
+def chat():
+    print("Start talking with the bot (type quit to stop)!")
+    while True:
+        inp = input("You: ")
+        if inp.lower() == "quit":
+            break
+
+        results = model.predict([bag_of_words(inp, words)])
+        results_index = numpy.argmax(results)
+        tag = labels[results_index]
+
+        for tg in data["intents"]:
+            if tg['tag'] == tag:
+                responses = tg['responses']
+
+        print(random.choice(responses))
+
+chat()
