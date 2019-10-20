@@ -40,11 +40,12 @@ def pre_process(url):
     r = http.request('GET', url)
     raw_html = r.data
     soup = BeautifulSoup(raw_html, 'html.parser')
-    raw_content = soup.find('div', attrs={'class':'post-content'}).find_all('p')
+    raw_content = soup.find(id = 'mw-content-text').find_all('p')
     for idx , elem in enumerate(raw_content):
         raw_content[idx] = elem.text.strip()
     text  = ' '.join(raw_content)
     text = textcleaner(text)
+    print(text)
     return (text)
 
 def textcleaner(text):
@@ -57,6 +58,8 @@ def textcleaner(text):
         if w not in STOPWORDS:
             fileredText.append(w)
     text = ' '.join(fileredText)
+    text = re.sub("[0-9]", "", text)
+    text = re.sub(" +", " ", text)
     return (text)
 
 try:
